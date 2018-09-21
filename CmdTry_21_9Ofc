@@ -1,0 +1,83 @@
+finaldf.printSchema
+
+val newline=finaldf.withColumn("ts", (col("timestamp").cast("timestamp"))).withColumn("open",finaldf("priceData.open").cast(DoubleType)).withColumn("high",finaldf("priceData.high").cast(DoubleType)).withColumn("close",finaldf("priceData.close").cast(DoubleType)).withColumn("low",finaldf("priceData.low").cast(DoubleType)).withColumn("volume",finaldf("priceData.volume").cast(DoubleType))
+val flatdata=newline.select("symbol","ts","close","high","low","open","volume")
+scala> :history
+470  spark.sql("select max(select agg(avg(close)-avg(open)) from demotable group by symbol)").show
+471  spark.sql("select max(select agg(avg(close)-avg(open)) from demotable)").show
+472  spark.sql("select agg(avg(close)-avg(open)) from demotable").show
+473  spark.sql("select max(avg(close)-avg(open)) from demotable").show
+474  spark.sql("select max(avg(close)-avg(open)) from demotable group by symbol").show
+475  spark.sql("select avg(close)-avg(open) from demotable group by symbol").show
+476  spark.sql("select symbol, avg(close)-avg(open) from demotable group by symbol").show
+477  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").show
+478  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").groupBy("symbol","avg").max(avg).show
+479  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").groupBy("symbol","avg").max("avg").show
+480  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").groupBy("symbol").max("avg").show
+481  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").max("avg").show
+482  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").registerTempTable("table2")
+483  spark.sql("select max(avg) from table2").show
+484  spark.sql("select symbol,  max(avg) from table2").show
+485  spark.sql("select symbol,max(avg) from table2").show
+486  spark.sql("select * from table2").show
+487  spark.sql("select symbol,avg from table2 where avg=(select max(avg) from table2)").show
+488  !history
+489  :history
+
+
+
+import spark.implicits._
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.DoubleType
+spark.sql("set spark.sql.streaming.schemaInference=true")
+val lines =  spark.readStream.format("json").load("file:///home/uidp30/SparkStrm/jsonData/")
+#val ts = to_timestamp($"timestamp", "yyyy-MM-dd HH:mm:ss")#this is for Spark:2.3.1 will not work for lower version
+val newline=lines.withColumn("ts", (col("timestamp").cast("timestamp"))).withColumn("open",lines("priceData.open").cast(DoubleType)).withColumn("high",lines("priceData.high").cast(DoubleType)).withColumn("close",lines("priceData.close").cast(DoubleType)).withColumn("low",lines("priceData.low").cast(DoubleType)).withColumn("volume",lines("priceData.volume").cast(DoubleType))
+val flatdata=newline.select("symbol","ts","close","high","low","open","volume")
+val grpFlat=flatdata.groupBy("symbol").agg(avg("close")-avg("open")).toDf("symbol","avg")
+grpFlat.registerTempTable("table2")
+val grpFlat1=flatdata.groupBy("symbol").agg(avg("close")-avg("open")).toDF("symbol","avg").agg(max("avg")).toDF("maxavg")
+grpFlat1.registerTempTable("table4")
+
+val query2=spark.sql("select symbol,avg from table2 join table4 ON avg=maxavg").writeStream.outputMode("complete").format("console").start()
+
+val q2=spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").registerTempTable("table2").sql("select symbol,avg from table2 where avg=(select max(avg) from table2)").writeStream.outputMode("complete").format("console").start()
+
+flatdata.registerTempTable("table3")
+
+val query=spark.sql("select symbol,close from table3 ").writeStream.outputMode("update").format("console").start()
+
+val query=spark.sql("select symbol,avg from table2").writeStream.outputMode("complete").format("console").start()
+
+
+val query=spark.sql("select symbol,avg from table2 where avg=(select max(avg) from table2)").writeStream.outputMode("complete").format("console").start()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#val query = newline.groupBy(newline("symbol"),window(newline("ts"), "3 minutes", "1 minutes")).avg("opennew").writeStream.outputMode("complete").format("console").start()
+
+#below query will calculate live avg(live avg) of closing price of a stock when the data comes it will it will generate the output in console, for sliding avg i think we need to persist this data in some table and then in we can trigger script in the interval required(5 min in this case)
+val query1 = flatdata.groupBy(flatdata("symbol")).avg("close").writeStream.outputMode("complete").format("console").start()
+
+#Below codes are for diff of close and open price of Stock, by persisting the output(of query2) we can sch to get max of the diff. Multiple aggregation not working Structure Streaming    
+val groupout = flatdata.groupBy(flatdata("symbol")).agg(avg("close")-avg("open")).toDF("symbol","diff")
+val query2 = groupout.select("symbol","diff").orderBy(desc("diff")).writeStream.outputMode("complete").format("console").start()
+
+#will generate live volume for all the 4 stocks, By selecting max of sum on every 10 mint's out will be having required o/p
+val query4 = flatdata.groupBy(flatdata("symbol")).sum("volume").writeStream.outputMode("complete").format("console").start()
+
+val query5 = flatdata.groupBy(flatdata("symbol"),window(newline("ts"), "3 minutes", "1 minutes")).sum("volume").writeStream.outputMode("complete").format("console").start()
