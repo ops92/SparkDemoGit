@@ -1,0 +1,73 @@
+434  val df= spark.read.format("json").option("inferSchema","true").load("/home/uidp30/SparkStrm/jsonData/")
+435  df.printSchema
+436  df.select("_corrupt_record").show
+437  df.show
+438  val df= spark.read.format("json").option("inferSchema","true").load("/home/uidp30/SparkStrm/jsonData/").select("symbol","timestamp","priceData")
+439  df.groupBy("symbol").count().show
+440  df.printSchema
+441  val df= spark.read.format("json").option("inferSchema","true").load("/home/uidp30/SparkStrm/jsonData/").select("symbol","timestamp","priceData").filter("symbol"!==null)
+442  val df= spark.read.format("json").option("inferSchema","true").load("/home/uidp30/SparkStrm/jsonData/").select("symbol","timestamp","priceData").filter("symbol"!=null)
+443  val df= spark.read.format("json").option("inferSchema","true").load("/home/uidp30/SparkStrm/jsonData/").select("symbol","timestamp","priceData")
+444  df.select("symbol","timestamp","priceData")
+445  df.select("symbol","timestamp","priceData").filter(df("symbol")==="null")
+446  df.select("symbol","timestamp","priceData").filter(df("symbol")==="null").show
+447  df.select("symbol","timestamp","priceData").filter(df("symbol")===null).show
+448  df.select("symbol","timestamp","priceData").filter(df("symbol")!==null).show
+449  df.select("symbol","timestamp","priceData").filter(df("symbol")!=="null").show
+450  df.select("symbol","timestamp","priceData").filter(df("symbol")!=="null").groupBy("symbol").count().show
+451  val finaldf=df.select("symbol","timestamp","priceData").filter(df("symbol")!=="null")
+452  finaldf.show
+453  finaldf.registerTempTable("demotable")
+454  spark.sql("select * from demotable limit 10").show
+455  spark.sql("select * from demotable where priceData =(select max(priceData.close) from demotable)").show
+456  finaldf.printSchema
+457  import spark.implicits._
+458  import org.apache.spark.sql.functions._
+459  import org.apache.spark.sql.types.DoubleType
+460  val newline=finaldf.withColumn("ts", (col("timestamp").cast("timestamp"))).withColumn("open",lines("priceData.open").cast(DoubleType)).withColumn("high",lines("priceData.high").cast(DoubleType)).withColumn("close",lines("priceData.close").cast(DoubleType)).withColumn("low",lines("priceData.low").cast(DoubleType)).withColumn("volume",lines("priceData.volume").cast(DoubleType))
+461  val flatdata=newline.select("symbol","ts" as "timestamp","close","high","low","open","volume")
+462  val newline=finaldf.withColumn("ts", (col("timestamp").cast("timestamp"))).withColumn("open",finaldf("priceData.open").cast(DoubleType)).withColumn("high",finaldf("priceData.high").cast(DoubleType)).withColumn("close",finaldf("priceData.close").cast(DoubleType)).withColumn("low",finaldf("priceData.low").cast(DoubleType)).withColumn("volume",finaldf("priceData.volume").cast(DoubleType))
+463  val flatdata=newline.select("symbol","ts" as "timestamp","close","high","low","open","volume")
+464  val flatdata=newline.select("symbol","ts","close","high","low","open","volume")
+465  flatdata.printSchema
+466  flatdata.registerTempTable("demotable")
+467  spark.sql("select * from demotable where close =(select max(close) from demotable)").show
+468  spark.sql("select * from demotable where close =(select max(select agg(avg(close)-avg(open)) from demotable group by symbol)").show
+469  spark.sql("select max(select agg(avg(close)-avg(open)) from demotable group by symbol").show
+470  spark.sql("select max(select agg(avg(close)-avg(open)) from demotable group by symbol)").show
+471  spark.sql("select max(select agg(avg(close)-avg(open)) from demotable)").show
+472  spark.sql("select agg(avg(close)-avg(open)) from demotable").show
+473  spark.sql("select max(avg(close)-avg(open)) from demotable").show
+474  spark.sql("select max(avg(close)-avg(open)) from demotable group by symbol").show
+475  spark.sql("select avg(close)-avg(open) from demotable group by symbol").show
+476  spark.sql("select symbol, avg(close)-avg(open) from demotable group by symbol").show
+477  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").show
+478  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").groupBy("symbol","avg").max(avg).show
+479  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").groupBy("symbol","avg").max("avg").show
+480  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").groupBy("symbol").max("avg").show
+481  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").max("avg").show
+482  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").registerTempTable("table2")
+483  spark.sql("select max(avg) from table2").show
+484  spark.sql("select symbol,  max(avg) from table2").show
+485  spark.sql("select symbol,max(avg) from table2").show
+486  spark.sql("select * from table2").show
+487  spark.sql("select symbol,avg from table2 where avg=(select max(avg) from table2)").show
+488  !history
+489  :history
+490  import spark.implicits._
+491  import org.apache.spark.sql.functions._
+492  import org.apache.spark.sql.types.DoubleType
+493  spark.sql("set spark.sql.streaming.schemaInference=true")
+494  val lines =  spark.readStream.format("json").load("file:///home/uidp30/SparkStrm/jsonData/")
+495  val newline=lines.withColumn("ts", (col("timestamp").cast("timestamp"))).withColumn("open",lines("priceData.open").cast(DoubleType)).withColumn("high",lines("priceData.high").cast(DoubleType)).withColumn("close",lines("priceData.close").cast(DoubleType)).withColumn("low",lines("priceData.low").cast(DoubleType)).withColumn("volume",lines("priceData.volume").cast(DoubleType))
+496  val flatdata=newline.select("symbol","ts" as "timestamp","close","high","low","open","volume")
+497  val flatdata=newline.select("symbol","ts","close","high","low","open","volume")
+498  spark.sql("select max(select agg(avg(close)-avg(open)) from demotable group by symbol)").show
+499  spark.sql("select avg(close)-avg(open) from demotable group by symbol").show
+500  flatdata.registerTempTable("demotable")
+501  spark.sql("select symbol, avg(close)-avg(open) as avg from demotable group by symbol").registerTempTable("table2")
+502  val query=spark.sql("select symbol,avg from table2 where avg=(select max(avg) from table2)").writeStream.outputMode("complete").format("console").start()
+503  val df= spark.read.format("json").option("inferSchema","true").load("/home/uidp30/SparkStrm/jsonData/").select("symbol","timestamp","priceData")
+504  spark.sql("select * from table2").show
+505  :history
+506  :history 100
