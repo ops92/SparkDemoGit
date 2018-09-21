@@ -52,6 +52,8 @@ val query=spark.sql("select symbol,avg from table2").writeStream.outputMode("com
 
 val query=spark.sql("select symbol,avg from table2 where avg=(select max(avg) from table2)").writeStream.outputMode("complete").format("console").start()
 
+val grpFlat=flatdata.groupBy(flatdata.col("symbol"),window(flatdata.col("ts"),"450 seconds")).agg(avg("close")-avg("open")).writeStream.outputMode("update").format("console").start()
+
 
 
 
