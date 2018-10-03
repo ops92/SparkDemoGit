@@ -1,0 +1,42 @@
+
+1	om_prakash11	om_prakash11	192.168.170.31	/home/ om_prakash11	Oct 16, 2018	http://192.168.170.30:50070
+
+
+
+ export SPARK_HOME=/opt/spark/spark-2.1.0-bin-hadoop2.7
+ cd /opt/spark/spark-2.1.0-bin-hadoop2.7/bin/
+ ./spark-shell
+
+ https://acadgild.com/blog/ipl-matches-data-analysis-using-spark
+ 
+create external table IPLMatches(id Int,season Int,city String,date String,team1 String,team2 String,toss_winner String,toss_decision String,result String,dl_applied String,winner String,win_by_runs String,win_by_wickets String,player_of_match String,venue String,umpire1 String,umpire2 String,umpire3 String) 
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+location '/user/om_prakash11/IPLMatches';
+
+Case 1: Which stadium is best suitable for first batting
+
+val data=spark.sql("select * from omdb.IPLMatches"
+
+case1Data= data.select("id","toss_decision","won_by_runs","won_by_wickets","venue")
+
+val venueWinCount=case1Data.filter(case1Data("win_by_runs")!=="0").groupBy(case1Data("venue")).count().toDF("winVenue","winCount")
+
+
+
+val venueByCount=data.groupBy("venue").count().toDF("venue","venueCount")
+
+val joinWinCount=venueByCount.join(venueWinCount,venueByCount("venue")===venueWinCount("winVenue")).select("venue","venueCount","winCount")
+
+val perc=joinWinCount.withColumn("PercentWin",round((joinWinCount("winCount")/joinWinCount("venueCount"))*100))
+
+perc.select("venue","venueCount","winCount","PercentWin").where(perc("PercentWin")===maxperct)
+
+perc.registerTempTable("case1table")
+
+
+ 
+spark.sql("select * from case1table where PercentWin=(select max(PercentWin) from case1table)").show
+ 
+ 
